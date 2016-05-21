@@ -2,7 +2,7 @@
 
 
 (require "AST.rkt" "lib.rkt")
-;(provide parse-p parse-e parse-d parse-v parse-token)
+;(provide parse-p parse-e parse-d parse-v parse-v)
 (provide (all-defined-out))
 ;;;;;;;;;;; REGEX DECLARATIONS ;;;;;;;;;;;;;;;;;;
 
@@ -10,8 +10,7 @@
 (define var-str "^[a-zA-Z_][a-zA-Z_0-9]*")
 (define num-str "\\b(?:0|[1-9][0-9]*)\\b")
 (define pred-str "\\b(?:number[?]|a[?])\\b")
-(define biop-str "\\b(?:<=|[-+*<=])\\b")
-
+(define biop-str "\\B(?:[-+=*<]|<=)\\B")
 
 (define label-regexp   (pregexp label-str))
 (define var-regexp     (pregexp var-str))
@@ -46,26 +45,27 @@
 
 ;;;;;;;;;; PARSE DEFINITIONS ;;;;;;;;;;;;;;;;;;;;
 
-;; quoted -> program-node%
+;; quoted -> program-node
 (define (parse-p quoted-expr)
   (let ([program-label    (parse-e          (first quoted-expr))]
-        [functions        (map parse-func   (rest  quoted-expr))])
-  (make-object program-node%  program-label  (list program-label functions))))
+        [functions        (map parse-f      (rest  quoted-expr))])
+    (printf "rest:~a" (rest quoted-expr))
+  (p-node  functions program-label)))
 
 
-;; quoted -> func-node%
-(define (parse-func  quoted-expr)
-  (let ([func-label (parse-token (first quoted-expr))]
-        [args       (map parse-token (second quoted-expr))]
-        [body       (parse-e (third quoted-expr))])
-    (make-object function-node% func-label args body)))
+;; quoted -> func-node
+(define (parse-f  quoted-expr)
+  (let ([func-label (parse-v     (first quoted-expr))]
+        [args       (map parse-v (second quoted-expr))]
+        [body       (parse-e     (third quoted-expr))])
+    (f-node body func-label args)))
 
 
-;; string -> e-node%/d-node%/v-node%
+;; string -> e-node/d-node/v-node
 (define (parse-e quoted-expr)
   (match quoted-expr
-    [`(let ([,var ,d]) ,e)        (make-object let-node% (parse-v var) (parse-d d) (parse-es e))]
-    [`(if ,v ,e1 ,e2)             (make-object if-node%  (parse-v v) (parse-es e1 e2))]
+    [`(let ([,var ,d]) ,e)        (let-node (list (parse-v var) (parse-d d)  (parse-e e)))]
+    [`(if ,v ,e1 ,e2)             (if-node  (list (parse-v v)   (parse-e e1) (parse-e e2)))]
     [else                         (parse-d quoted-expr)]))
 
 
@@ -73,37 +73,35 @@
   (map parse-e exprs))
 
 
+;; quote -> d-node/v-node/error
 (define (parse-d quoted-expr)
   (match quoted-expr
-    [`(,(? is-biop? op) ,v1 ,v2)     (make-object biop-node%  (parse-token op)   (parse-vs v1 v2))]
-    [`(,(? is-pred? pred) ,v)        (make-object pred-node%  (parse-token pred) (parse-vs v))]
-    [`(new-array ,v1 ,v2)            (make-object new-array-node%  (parse-vs v1 v2))]
-    [`(new-tuple ,vs ...)            (make-object new-tuple-node%  (apply parse-vs vs))]
-    [`(aref ,v1 ,v2)                 (make-object aref-node%  (parse-vs v1 v2))]
-    [`(aset ,v1 ,v2 ,v3)             (make-object aset-node%  (parse-vs v1 v2 v3))]
-    [`(alen ,v)                      (make-object alen-node%  (parse-vs v))]
-    [`(print ,v)                     (make-object print-node% (parse-vs v))]
-    [`(make-closure ,label ,v)       (make-object make-closure-node%  (parse-token label) (parse-vs v))]
-    [`(closure-proc ,v)              (make-object closure-proc-node%  (parse-vs v))]
-    [`(closure-vars ,v)              (make-object closure-vars-node%  (parse-vs v))]
-    [`(,vs ...)                          (make-object func-call-node% (apply parse-vs vs))]
-    [else               (parse-v quoted-expr)]))
+    [`(,(? is-biop? op) ,v1 ,v2)     (biop-node     (parse-vs op v1 v2))]
+    [`(number? ,v)                   (number?-node  (parse-vs v))]
+    [`(a? ,v)                        (a?-node       (parse-vs v))]
+    [`(new-array ,v1 ,v2)            (new-array-node  (parse-vs v1 v2))]
+    [`(new-tuple ,vs ...)            (new-tuple-node  (apply parse-vs vs))]
+    [`(aref ,v1 ,v2)                 (aref-node  (parse-vs v1 v2))]
+    [`(aset ,v1 ,v2 ,v3)             (aset-node  (parse-vs v1 v2 v3))]
+    [`(alen ,v)                      (alen-node  (parse-vs v))]
+    [`(print ,v)                     (print-node (parse-vs v))]
+    [`(make-closure ,label ,v)       (make-closure-node  (parse-vs label v))]
+    [`(closure-proc ,v)              (closure-proc-node  (parse-vs v))]
+    [`(closure-vars ,v)              (closure-vars-node  (parse-vs v))]
+    [`(,vs ...)                      (func-call-node (apply parse-vs vs))]
+    [else                            (parse-v quoted-expr)]))
 
 
-
+;; quote -> v-node/error
 (define (parse-v quoted-expr)
   (match quoted-expr
-    [num?                (make-object num-node%   quoted-expr empty)]
-    [(? is-label? l)     (make-object label-node%  quoted-expr empty)]
-    [(? is-var? v)       (make-object var-node%   quoted-expr empty)]))
+    [(? number? n)       (num-node       (list quoted-expr))]
+    [(? is-label? l)     (label-node     (list quoted-expr))]
+    [(? is-biop?  op)    (biop-op-node   (list quoted-expr))]
+    [(? is-var? v)       (var-node       (list quoted-expr))]
+    [else                (error (format "parse-v: expression not valid: ~a" quoted-expr))]))
 
+
+;; quote -> (listof v-node)/error
 (define (parse-vs . exprs)
   (map parse-v exprs))
-
-(define (parse-token quoted-expr)
-  (match quoted-expr
-    [(? number? n)          (make-object num-node%   quoted-expr empty)]
-    [(? is-label? l)     (make-object label-node%  quoted-expr empty)]
-    [(? is-biop?  op)    (make-object biop-node%  quoted-expr empty)]
-    [(? is-pred?  pred)  (make-object pred-node%  quoted-expr empty)]
-    [(? is-var? v)       (make-object var-node%   quoted-expr empty)]))
