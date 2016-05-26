@@ -30,12 +30,12 @@
   (match e-ast
     [(? let-node?)   (let* ([children (get-children e-ast)]
                         [var-name  (first-child (first children))]
-                        [c2  (second children)]
-                        [c3  (third children)])
+                        [var-val   (second children)]
+                        [child-e  (third children)])
                    ;(printf "1:~a\n 2:~a\n 3:~a\n" var-name c2 c3)
                    (append
-                    (d-node->L2 c2 var-name)
-                    (e-node->L2 c3)))]
+                    (d-node->L2 var-val var-name)
+                    (e-node->L2 child-e)))]
     
     [(? if-node?)   (let* ([children (get-children e-ast)]
                        [bool-val  (v-node->L2 (first children))]
@@ -44,7 +44,7 @@
                        [true-label (true-label-gen)]
                        [false-label (false-label-gen)])
                   ;; must be greater than 1 because 1 -> 0 in L2
-                  (append `((cjump ,bool-val > 1 ,true-label  ,false-label)
+                  (append `((cjump ,bool-val = 0 ,false-label ,true-label)
                             ,true-label)
                           (e-node->L2 true-e)
                           `(,false-label)
@@ -111,8 +111,10 @@
                                                         (,x += 1)))]
                                     ;;multiplication needs a tmp name
                                     ['*           (let ([tmp (temp-gen 'mult)])
-                                                    `((,tmp <- ,(decode arg1))
-                                                      (,x  <- ,(decode arg2))
+                                                    `((,tmp <- ,arg1)
+                                                      (,tmp >>= 1)
+                                                      (,x  <- ,arg2)
+                                                      (,x >>= 1)
                                                       (,x *= ,tmp)
                                                       (,x <<= 1)
                                                       (,x += 1)))]
@@ -224,7 +226,8 @@
          
          
          [(? print-node?)       `((rdi <- ,(first c-data))
-                                  (call print 1))]
+                                  (call print 1)
+                                  (rax <- rax))]
          ;; signal error
          [else              (error "d-node->L2: Did not recognize ~a")]))]))
 
@@ -237,23 +240,23 @@
 ;; node? -> quoted
 (define (f-node->L2 f-ast)
     (match f-ast
-      [(? f-node?)   (let* ([func-label (v-node->L2     (get-label f-ast))]
-                            [args       (map v-node->L2 (get-args  f-ast))]
-                            [num-args   (length args)]
-                            [body       (e-node->L2     (get-body  f-ast))]
-                            [num-locals (if (> (length args) 6)
-                                            (- (length args) 6)
-                                            0)]
-                            [offset     (* 8 (- num-locals 1))])
+      [(? f-node?)   (let* ([func-label   (v-node->L2     (get-label f-ast))]
+                            [args         (map v-node->L2 (get-args  f-ast))]
+                            [num-args     (length args)]
+                            [body         (e-node->L2     (get-body  f-ast))]
+                            [num-stacked  0];(if (> (length args) 6)
+                                             ; (- (length args) 6)
+                                              ;0)]
+                            [stack-offset     0]);;(* 8 (- num-stacked 1))])
 
-                       (append `(,func-label ,num-args ,num-locals)
+                       (append `(,func-label ,num-args 0)
                                (for/list ([i (range num-args)])
                                          (cond
                                            ;; transfers registers to variables
                                            [(< i 6)  `(,(list-ref args i) <-  ,(list-ref arg-regs i))]
                                            
-                                           [else     (set! offset (- offset 8))
-                                                     `(,(list-ref args i) <- (stack-arg ,offset))]))
+                                           [else     (set! stack-offset (+ stack-offset 8))
+                                                     `(,(list-ref args i) <- (stack-arg ,stack-offset))]))
                                body))]
       
       [else            (error "f-node->L2: provided node is no f-node")]))
@@ -265,15 +268,23 @@
       [(? p-node?)
        ;; idea - treat the main-e as a func
             (let* ([main-e       (get-main-e p-ast)]
-                   [main-e-label (parse-v ':L_1)]
-                   [main-e-func  (f-node main-e main-e-label empty)]
+                   [is-func?     (and (func-call-node? main-e)
+                                      (= 1 (length (get-children main-e))))]
+                   [main-e-label (if is-func?
+                                     (first (get-children main-e))
+                                     (parse-v ':L_1))]
+                   [main-e-func  (if is-func?
+                                     #f
+                                     (f-node main-e main-e-label empty))]
                    [real-funcs   (get-children p-ast)]
-                   [func-asts    (cons main-e-func real-funcs)]
+                   [func-asts    (if is-func?
+                                     real-funcs
+                                     (cons main-e-func real-funcs))]
                    [funcs        (map f-node->L2 func-asts)]
                    )
-              ;(printf "real-funcs:~a\nmain-e-func
+              ;(printf "main-e:~a\n" main-e)
               ;(println "process pnode fine")
-              (cons ':L_1 funcs))]
+              (cons (v-node->L2 main-e-label) funcs))]
       
       ;; did not match any valid cases
       [else   (error "p-node->L2: invalid node: ~a" p-ast)]))

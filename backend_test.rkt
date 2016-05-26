@@ -440,5 +440,36 @@
                                                                        (return)
                                                                        :false15
                                                                        (rax <- 1)
-                                                                       (return)))) 
+                                                                       (return))))
+
+  (test-backend-p `((:main)
+                    (:main ()
+                           (let ([x (<= 2 55)])
+                             (if x x 0))))                 `(:main
+                                                             (:main 0 0
+                                                                    (x <- 2 <= 55)
+                                                                    (cjump x = 0 :l1 :l2)
+                                                                    :l1
+                                                                    (rax <- x)
+                                                                    :l2
+                                                                    (rax <- 0)
+                                                                    (return))))
   )
+#|
+
+
+(:L_1
+ (:L_1 0 0
+       (x <- 1)
+       (cjump x > 1 :true0 :false0)
+       :true0
+       (rdi <- 3)
+       (call print 1)
+       (rax <- rax)
+       (return)
+       :false0
+       (rdi <- 5)
+       (call print 1)
+       (rax <- rax)
+       (return)))
+|#
