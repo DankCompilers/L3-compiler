@@ -239,7 +239,7 @@
          
          [(? print-node?)       `((rdi <- ,(first c-data))
                                   (call print 1)
-                                  (rax <- rax))]
+                                  (,x <- rax))]
          ;; signal error
          [else              (error "d-node->L2: Did not recognize ~a")]))]))
 
@@ -256,10 +256,10 @@
                             [args         (map v-node->L2 (get-args  f-ast))]
                             [num-args     (length args)]
                             [body         (e-node->L2     (get-body  f-ast))]
-                            [num-stacked  0];(if (> (length args) 6)
-                                             ; (- (length args) 6)
-                                              ;0)]
-                            [stack-offset     0]);;(* 8 (- num-stacked 1))])
+                            [num-stacked  (if (> (length args) 6)
+                                              (- (length args) 6)
+                                              0)]
+                            [stack-offset (* 8 num-stacked)]);;(* 8 (- num-stacked 1))])
 
                        (append `(,func-label ,num-args 0)
                                (for/list ([i (range num-args)])
@@ -267,7 +267,7 @@
                                            ;; transfers registers to variables
                                            [(< i 6)  `(,(list-ref args i) <-  ,(list-ref arg-regs i))]
                                            
-                                           [else     (set! stack-offset (+ stack-offset 8))
+                                           [else     (set! stack-offset (- stack-offset 8))
                                                      `(,(list-ref args i) <- (stack-arg ,stack-offset))]))
                                body))]
       
