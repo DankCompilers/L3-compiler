@@ -119,7 +119,9 @@
                                                       (,x <<= 1)
                                                       (,x += 1)))]
                                     ;;cmp just need memcmp2w
-                                    [(or '= '< '<=) `((,x <- ,arg1 ,op ,arg2))]
+                                    [(or '= '< '<=) `((,x <- ,arg1 ,op ,arg2)
+                                                      (,x <<= 1)
+                                                      (,x += 1))]
                                     ;; signal error
                                     [else          (error (format "biop-to-string: Did not recognize operator ~a" op))]))]
          
