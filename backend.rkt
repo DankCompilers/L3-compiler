@@ -20,9 +20,9 @@
 
 (define var-count -1)
 
-(define (make-unique var-name)
-  (set! var-count (+ var-count 1))
-  (string->symbol (format "~a~a~a" 'L3_ var-name var-count)))
+(define (make-valid var-name)
+  ;(set! var-count (+ var-count 1))
+  (string->symbol (format "~a~a" 'L3_ var-name)))
 
 
 
@@ -246,7 +246,9 @@
 
 
 (define (v-node->L2 v-ast)
-  (encode (first-child v-ast)))
+  (if (var-node? v-ast)
+      (make-valid (encode (first-child v-ast)))
+      (encode (first-child v-ast))))
 
 
 ;; node? -> quoted
