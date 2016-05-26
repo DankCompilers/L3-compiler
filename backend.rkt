@@ -1,6 +1,8 @@
 #lang racket
 
-(require "AST.rkt" "lib.rkt")
+(require "AST.rkt"
+         "lib.rkt"
+         "parser.rkt")
 (provide (all-defined-out))
 
 
@@ -30,7 +32,7 @@
                         [var-name  (first-child (first children))]
                         [c2  (second children)]
                         [c3  (third children)])
-                   (printf "1:~a\n 2:~a\n 3:~a\n" var-name c2 c3)
+                   ;(printf "1:~a\n 2:~a\n 3:~a\n" var-name c2 c3)
                    (append
                     (d-node->L2 c2 var-name)
                     (e-node->L2 c3)))]
@@ -260,10 +262,18 @@
 (define (p-node->L2 p-ast)
     (match p-ast
       ;; p nodes
-      [(? p-node?)       (let* ([main-e      (v-node->L2 (get-main-e p-ast))]
-                                [func-asts   (get-children p-ast)]
-                                [funcs       (map f-node->L2 func-asts)])
-                           (cons main-e funcs))]
+      [(? p-node?)
+       ;; idea - treat the main-e as a func
+            (let* ([main-e       (get-main-e p-ast)]
+                   [main-e-label (parse-v ':L_1)]
+                   [main-e-func  (f-node main-e main-e-label empty)]
+                   [real-funcs   (get-children p-ast)]
+                   [func-asts    (cons main-e-func real-funcs)]
+                   [funcs        (map f-node->L2 func-asts)]
+                   )
+              ;(printf "real-funcs:~a\nmain-e-func
+              ;(println "process pnode fine")
+              (cons ':L_1 funcs))]
       
       ;; did not match any valid cases
       [else   (error "p-node->L2: invalid node: ~a" p-ast)]))

@@ -47,10 +47,9 @@
 
 ;; quoted -> program-node
 (define (parse-p quoted-expr)
-  (let ([program-label    (parse-e          (first quoted-expr))]
+  (let ([main-e           (parse-e          (first quoted-expr))]
         [functions        (map parse-f      (rest  quoted-expr))])
-    (printf "rest:~a" (rest quoted-expr))
-  (p-node  functions program-label)))
+  (p-node  functions main-e)))
 
 
 ;; quoted -> func-node

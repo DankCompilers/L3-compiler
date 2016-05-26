@@ -4,11 +4,6 @@
 (provide (all-defined-out))
 
 
-;; TODO: IMPLEMENT IS VAR NODE
-(define datum/c (or/c number? symbol?))
-
-
-
 ;;;;;;;;;;;;; BASE TYPES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; base struct for all AST nodes

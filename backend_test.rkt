@@ -398,12 +398,26 @@
                                                                      (rax <- 1)
                                                                      (return)))
 
-  (test-backend-p `(:a-func (:a-func (arg1 arg2 arg3 arg4)
+  (test-backend-p `((let ([some-val (:a-func 1 2 3 4)])
+                     some-val)
+                     (:a-func (arg1 arg2 arg3 arg4)
                               (let ([a-num (number? arg1)])
                                 (if a-num
                                     (let ([sum1 (+ arg1 arg2)])
                                       (+ sum1 arg3))
-                                    0))))                           `(:a-func
+                                    0))))                           `(:L_1
+                                                                      (:L_1 0
+                                                                            0
+                                                                            ((mem rsp -8) <- :return3)
+                                                                            (rdi <- 3)
+                                                                            (rsi <- 5)
+                                                                            (rdx <- 7)
+                                                                            (rcx <- 9)
+                                                                            (call :a-func 4)
+                                                                            :return3
+                                                                            (some-val <- rax)
+                                                                            (rax <- some-val)
+                                                                            (return))
                                                                       (:a-func
                                                                        4
                                                                        0
