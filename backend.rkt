@@ -52,7 +52,7 @@
                        [true-label (true-label-gen)]
                        [false-label (false-label-gen)])
                   ;; must be greater than 1 because 1 -> 0 in L2
-                  (append `((cjump ,bool-val = 0 ,false-label ,true-label)
+                  (append `((cjump ,bool-val = 1 ,false-label ,true-label)
                             ,true-label)
                           (e-node->L2 true-e)
                           `(,false-label)
@@ -172,14 +172,14 @@
                                          (,x <- rax)))]
          
          [(? new-tuple-node?)   (let* ([size-arg    (encode (length c-data))]
-                                       [val-arg     (first c-data)]
-                                       [offset      8])
+                                       [val-arg     0];(first c-data)]
+                                       [offset      0])
                                   
                                    (append `((rdi <- ,size-arg)
                                              (rsi <- ,val-arg)
                                              (call allocate 2)
                                              (,x <- rax))
-                                           (for/list ([a-val (rest c-data )])
+                                           (for/list ([a-val c-data ])
                                                      (set! offset (+ offset 8))
                                                      `((mem ,x ,offset) <- ,a-val))))]
          
