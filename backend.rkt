@@ -18,6 +18,14 @@
                           (lambda () (generator 'return))))
 (define arg-regs (list 'rdi 'rsi 'rdx 'rcx 'r8 'r9))
 
+(define var-count -1)
+
+(define (make-unique var-name)
+  (set! var-count (+ var-count 1))
+  (string->symbol (format "~a~a~a" 'L3_ var-name var-count)))
+
+
+
 
 ;; p-node? -> string?
 (define (L3->L2 l3-p-node)
