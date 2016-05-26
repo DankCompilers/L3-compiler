@@ -111,14 +111,16 @@
                                                     [else          `((,x <- ,arg1)
                                                                      (,x += ,arg2)
                                                                      (,x -= 1))])]
-                                    ['-           (cond
-                                                    [x-is-arg2?     `((,x <- ,arg2)
-                                                                     (,x -= ,arg1)
-                                                                     (,x += 1))]
+                                    ['-           (let ([tmp   (temp-gen 'sub)])
+                                                    (cond
+                                                      [x-is-arg2?     `((,tmp <- ,arg2)
+                                                                         (,x <- ,arg1)
+                                                                         (,x -= ,tmp)
+                                                                         (,x += 1))]
                                                       ;; no var -> needs adjustment
-                                                     [else         `((,x <- ,arg1)
-                                                                     (,x -= ,arg2)
-                                                                     (,x += 1))])]
+                                                      [else         `((,x <- ,arg1)
+                                                                      (,x -= ,arg2)
+                                                                      (,x += 1))]))]
                                     ;;multiplication needs a tmp name
                                     ['*           (let ([tmp (temp-gen 'mult)])
                                                     `((,tmp <- ,arg1)
@@ -240,6 +242,9 @@
          [(? print-node?)       `((rdi <- ,(first c-data))
                                   (call print 1)
                                   (,x <- rax))]
+         
+         [(? read-node?)         `((call read 0)
+                                   (,x <- rax))]
          ;; signal error
          [else              (error "d-node->L2: Did not recognize ~a")]))]))
 

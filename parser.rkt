@@ -84,6 +84,7 @@
     [`(aset ,v1 ,v2 ,v3)             (aset-node  (parse-vs v1 v2 v3))]
     [`(alen ,v)                      (alen-node  (parse-vs v))]
     [`(print ,v)                     (print-node (parse-vs v))]
+    [`(read)                         (read-node  empty)]
     [`(make-closure ,label ,v)       (make-closure-node  (parse-vs label v))]
     [`(closure-proc ,v)              (closure-proc-node  (parse-vs v))]
     [`(closure-vars ,v)              (closure-vars-node  (parse-vs v))]
