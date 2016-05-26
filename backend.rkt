@@ -67,14 +67,16 @@
         [bounds-pass-label2 (true-label-gen)]
         [bounds-fail-label  (false-label-gen)])
     ;; checks if positive first
-    `((cjump 0 <= ,an-index  ,bounds-pass-label1 ,bounds-fail-label)
+    `((cjump 1 <= ,an-index  ,bounds-pass-label1 ,bounds-fail-label)
       ,bounds-fail-label
       (rdi <- ,an-array)
-      (rsi <- ,(encode an-index))
+      (rsi <- ,an-index)
       (call array-error 2)
       ;; now checks if less than array size
       ,bounds-pass-label1
       (,tmp <- (mem ,an-array 0))
+      (,tmp <<= 1)
+      (,tmp += 1)
       (cjump ,an-index < ,tmp ,bounds-pass-label2 ,bounds-fail-label)
       ,bounds-pass-label2)))
 
@@ -179,33 +181,35 @@
                                   
                                    (append `((rdi <- ,size-arg)
                                              (rsi <- ,val-arg)
-                                             (call allocate 2)
-                                             (,x <- rax))
+                                             (call allocate 2))
                                            (for/list ([a-val c-data ])
                                                      (set! offset (+ offset 8))
-                                                     `((mem ,x ,offset) <- ,a-val))))]
+                                                     `((mem rax ,offset) <- ,a-val))
+                                           `((,x <- rax))))]
          
          
          [(? aref-node?)        (let ([an-array    (first c-data)]
-                                      [an-index    (decode (second c-data))]
-                                      [tmp   (temp-gen 'bcheck)])
+                                      [an-index    (second c-data)]
+                                      [tmp         (temp-gen 'bcheck)])
                                   ;; check bounds, return val
                                   (append (gen-bounds-check x tmp an-array an-index)
                                           `((,tmp <- ,an-index)
+                                            (,tmp >>= 1)
                                             (,tmp *= 8)
                                             (,tmp += ,an-array)
                                             (,x   <- (mem ,tmp 8)))))]
          
          [(? aset-node?)        (let ([tmp   (temp-gen 'bcheck)]
                                       [an-array    (first c-data)]
-                                      [an-index    (decode (second c-data))]
+                                      [an-index    (second c-data)]
                                       [a-val       (third c-data)])
                                   ;; check bounds, set val, return 0
                                   (append (gen-bounds-check x tmp an-array an-index)
-                                          `((,x <- ,an-index)
-                                            (,x *= 8)
-                                            (,x += ,an-array)
-                                            ((mem ,x 8)   <- ,a-val)
+                                          `((,tmp <- ,an-index)
+                                            (,tmp >>= 1)
+                                            (,tmp *= 8)
+                                            (,tmp += ,an-array)
+                                            ((mem ,tmp 8)   <- ,a-val)
                                             (,x <- 1))))]   ;; put the final result for aset into x (always 0)
          
          [(? alen-node?)        (let ([an-array (first c-data)])
@@ -221,18 +225,18 @@
                                      `((rdi <- ,size-arg)
                                        (rsi <- ,val1)
                                        (call allocate 2)
-                                       (,x <- rax)
-                                       ((mem ,x 16) <- ,val2)))]
+                                       ((mem rax 16) <- ,val2)
+                                       (,x <- rax)))]
          
          [(? closure-proc-node?)    (let ([an-array    (first c-data)]
-                                          [an-index    0]
+                                          [an-index    (encode 0)]
                                           [tmp   (temp-gen 'bcheck)])
                                       ;; check bounds, return val
                                       (append (gen-bounds-check x tmp an-array an-index)
                                               `((,x   <- (mem ,an-array 8)))))]
          
          [(? closure-vars-node?)    (let ([an-array    (first c-data)]
-                                          [an-index    1]
+                                          [an-index    (encode 1)]
                                           [tmp   (temp-gen 'bcheck)])
                                       ;; check bounds, return val
                                       (append (gen-bounds-check x tmp an-array an-index)
