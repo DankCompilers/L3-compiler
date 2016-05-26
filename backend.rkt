@@ -36,13 +36,13 @@
 (define (e-node->L2 e-ast)
   ;; match the three possibilites
   (match e-ast
-    [(? let-node?)   (let* ([children (get-children e-ast)]
-                        [var-name  (first-child (first children))]
-                        [var-val   (second children)]
-                        [child-e  (third children)])
+    [(? let-node?)   (let* ([children  (get-children e-ast)]
+                            [var-name  (v-node->L2 (first children))]
+                            [var-val   (second children)]
+                            [child-e   (third children)])
                    ;(printf "1:~a\n 2:~a\n 3:~a\n" var-name c2 c3)
                    (append
-                    (d-node->L2 var-val var-name)
+                    (d-node->L2 var-val  var-name)
                     (e-node->L2 child-e)))]
     
     [(? if-node?)   (let* ([children (get-children e-ast)]
@@ -93,30 +93,32 @@
              [children    (get-children d-ast)]
              [c-data      (map  v-node->L2 children)])
        (match d-ast
-         [(? biop-node?)        (let* ([op     (first c-data)]
-                                       [arg1   (second c-data)]
-                                       [arg2   (third  c-data)]
+         [(? biop-node?)        (let* ([op         (first c-data)]
+                                       [arg1       (second c-data)]
+                                       [arg2       (third  c-data)]
+                                       ;[x-is-arg1? (and (symbol? arg1) (symbol= arg1 x))]
+                                       [x-is-arg2? (and (symbol? arg2) (symbol=? arg2 x))]
                                        [contains-var (ormap var-node? children)])
                                   (match op
                                     ;; addition/subtraction need slight modification for encoding
-                                    ['+           (if contains-var
-                                                      ;; has var -> no need to alter
-                                                      `((,x <- ,arg1)
-                                                        (,x += ,arg2)
-                                                        (,x -= 1))
+                                    ['+           (cond
+                                                    ;[x-is-arg1?    ((,x <- ,arg1)
+                                                    ;                 (,x += ,arg2)
+                                                    ;                 (,x -= 1))]
+                                                    [x-is-arg2?     `((,x <- ,arg2)
+                                                                     (,x += ,arg1)
+                                                                     (,x -= 1))]
+                                                    [else          `((,x <- ,arg1)
+                                                                     (,x += ,arg2)
+                                                                     (,x -= 1))])]
+                                    ['-           (cond
+                                                    [x-is-arg2?     `((,x <- ,arg2)
+                                                                     (,x -= ,arg1)
+                                                                     (,x += 1))]
                                                       ;; no var -> needs adjustment
-                                                      `((,x <- ,arg1)
-                                                        (,x += ,arg2)
-                                                        (,x -= 1)))]
-                                    ['-           (if contains-var
-                                                      ;; has var -> no need to alter
-                                                      `((,x <- ,arg1)
-                                                        (,x -= ,arg2)
-                                                        (,x += 1))
-                                                      ;; no var -> needs adjustment
-                                                      `((,x <- ,arg1)
-                                                        (,x -= ,arg2)
-                                                        (,x += 1)))]
+                                                     [else         `((,x <- ,arg1)
+                                                                     (,x -= ,arg2)
+                                                                     (,x += 1))])]
                                     ;;multiplication needs a tmp name
                                     ['*           (let ([tmp (temp-gen 'mult)])
                                                     `((,tmp <- ,arg1)
